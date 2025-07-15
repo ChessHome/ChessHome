@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ChessHome</title>
+<style>
+  :root {
+    --tile-size: 64px;
+    --light: #f0d9b5;
+    --dark: #b58863;
+  }
+  body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: radial-gradient(circle at top, #222 0%, #111 100%);
+    color: #fafafa;
+    font-family: system-ui, sans-serif;
+    gap: 3rem;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(8, var(--tile-size));
+    grid-template-rows: repeat(8, var(--tile-size));
+    box-shadow: 0 0 20px #0008, 0 0 5px #000a inset;
+  }
+  .square {
+    width: var(--tile-size);
+    height: var(--tile-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(var(--tile-size) * 0.8);
+    user-select: none;
+    position: relative;
+  }
+  .light { background: var(--light); }
+  .dark  { background: var(--dark);  }
+  .piece {
+    cursor: grab;
+    transition: transform 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+  }
+  .piece:active {
+    cursor: grabbing;
+    transform: scale(1.2);
+  }
+  #signalBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 2rem;
+    border-radius: 1rem;
+    background: #ffffff11;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 15px #0005;
+  }
+  #viewerCount {
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+  #viewerCount::after {
+    content: ' 👀';
+  }
+</style>
+<!-- Correct browser-compatible chess.js version -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+</head>
+<body>
+  <h1>ChessHome</h1>
+  <div id="board"></div>
+
+  <div id="signalBox">
+    <img src="https://media.giphy.com/media/xUA7bdpLxQhsSQdyog/giphy.gif" alt="signal gif" width="160" height="160" />
+    <div>Active visitors:</div>
+    <div id="viewerCount">—</div>
+  </div>
+
+<script>
+// --- chess logic with chess.js ---
+const game = new Chess();
+let humanColor = 'w'; // human plays white by default
+
+const board = document.getElementById('board');
+const lightSquares = new Set(['a1','c1','e1','g1','b2','d2','f2','h2','a3','c3','e3','g3','b4','d4','f4','h4','a5','c5','e5','g5','b6','d6','f6','h6','a7','c7','e7','g7','b8','d8','f8','h8']);
+
+function createSquare(id) {
+  const div = document.createElement('div');
+  div.className = `square ${lightSquares.has(id) ? 'light' : 'dark'}`;
+  div.dataset.square = id;
+  div.addEventListener('dragover', e => e.preventDefault());
+  div.addEventListener('drop', handleDrop);
+  return div;
+}
+
+const files = 'abcdefgh';
+for (let rank = 8; rank >= 1; rank--) {
+  for (let file = 0; file < 8; file++) {
+    const id = files[file] + rank;
+    board.appendChild(createSquare(id));
+  }
+}
+
+function renderPosition() {
+  document.querySelectorAll('.piece').forEach(p => p.remove());
+  game.board().forEach((row, r) => {
+    row.forEach((piece, f) => {
+      if (piece) {
+        const squareId = files[f] + (8 - r);
+        const span = document.createElement('span');
+        span.textContent = piece.unicode || getUnicode(piece);
+        span.className = 'piece';
+        span.draggable = piece.color === humanColor;
+        span.addEventListener('dragstart', handleDragStart);
+        getSquare(squareId).appendChild(span);
+      }
+    });
+  });
+}
+
+function getUnicode(piece) {
+  const unicodeMap = {
+    pw: '♙', nw: '♘', bw: '♗', rw: '♖', qw: '♔', kw: '♕',
+    pb: '♟', nb: '♞', bb: '♝', rb: '♜', qb: '♚', kb: '♛',
+  };
+  return unicodeMap[piece.color + piece.type] || unicodeMap[piece.type + piece.color] || '';
+}
+
+function getSquare(id) { return board.querySelector(`[data-square="${id}"]`); }
+
+let draggedSource = null;
+function handleDragStart(e) {
+  draggedSource = e.target.parentElement.dataset.square;
+}
+
+function handleDrop(e) {
+  const targetSquare = e.currentTarget.dataset.square;
+  const move = game.move({ from: draggedSource, to: targetSquare, promotion: 'q' });
+  if (move) {
+    renderPosition();
+    setTimeout(computerMove, 300);
+  } else {
+    renderPosition();
+  }
+}
+
+function computerMove() {
+  if (game.game_over()) return;
+  const moves = game.moves();
+  const move = moves[Math.floor(Math.random() * moves.length)];
+  game.move(move);
+  renderPosition();
+}
+
+renderPosition();
+
+// --- Disabled live counter due to CORS ---
+const viewerCount = document.getElementById('viewerCount');
+viewerCount.textContent = '—';
+</script>
+</body>
+</html>
